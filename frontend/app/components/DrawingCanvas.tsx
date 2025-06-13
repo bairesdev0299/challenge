@@ -7,7 +7,7 @@ interface DrawingCanvasProps {
     onDraw: (data: any) => void;
     width: number;
     height: number;
-    drawingData?: any; // Datos de dibujo recibidos
+    drawingData?: any;
 }
 
 const DrawingCanvas = forwardRef<HTMLCanvasElement, DrawingCanvasProps>((props, ref) => {
@@ -28,8 +28,18 @@ const DrawingCanvas = forwardRef<HTMLCanvasElement, DrawingCanvasProps>((props, 
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
-        const { x, y, type, color, lineWidth } = drawingData;
-        console.log('Processing received drawing data:', drawingData);
+        const { x, y, color, lineWidth } = drawingData;
+        console.log('=== RECEIVING PLAYER DRAWING INSTRUCTIONS ===');
+        console.log('Drawing point received:', {
+            x,
+            y,
+            color,
+            lineWidth,
+            canvasSize: {
+                width: canvas.width,
+                height: canvas.height
+            }
+        });
 
         // Configurar el estilo del trazo
         ctx.strokeStyle = color || '#000000';
@@ -37,40 +47,20 @@ const DrawingCanvas = forwardRef<HTMLCanvasElement, DrawingCanvasProps>((props, 
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
 
-        // Ajustar las coordenadas al tamaño del canvas
-        const rect = canvas.getBoundingClientRect();
-        const scaleX = canvas.width / rect.width;
-        const scaleY = canvas.height / rect.height;
-        const adjustedX = x * scaleX;
-        const adjustedY = y * scaleY;
-
-        switch (type) {
-            case 'start':
-                console.log('Starting new path at:', adjustedX, adjustedY);
-                ctx.beginPath();
-                ctx.moveTo(adjustedX, adjustedY);
-                break;
-            case 'draw':
-                console.log('Drawing line to:', adjustedX, adjustedY);
-                ctx.lineTo(adjustedX, adjustedY);
-                ctx.stroke();
-                break;
-            case 'end':
-                console.log('Ending path');
-                ctx.closePath();
-                break;
-        }
+        // Dibujar el punto
+        ctx.beginPath();
+        ctx.arc(x, y, lineWidth/2, 0, Math.PI * 2);
+        ctx.fill();
+        console.log('=== END DRAWING INSTRUCTIONS ===');
     }, [drawingData, isDrawing]);
 
     useEffect(() => {
         const canvas = canvasRef.current;
         if (!canvas) return;
 
-        // Configurar el tamaño del canvas
         canvas.width = width;
         canvas.height = height;
 
-        // Configurar el estilo por defecto
         const ctx = canvas.getContext('2d');
         if (ctx) {
             ctx.strokeStyle = '#000000';
@@ -85,83 +75,79 @@ const DrawingCanvas = forwardRef<HTMLCanvasElement, DrawingCanvasProps>((props, 
         if (!canvas) return { x: 0, y: 0 };
 
         const rect = canvas.getBoundingClientRect();
-        const scaleX = canvas.width / rect.width;
-        const scaleY = canvas.height / rect.height;
-
         return {
-            x: (clientX - rect.left) * scaleX,
-            y: (clientY - rect.top) * scaleY
+            x: clientX - rect.left,
+            y: clientY - rect.top
         };
+    };
+
+    const interpolatePoints = (start: { x: number; y: number }, end: { x: number; y: number }) => {
+        const points = [];
+        const dx = end.x - start.x;
+        const dy = end.y - start.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        const steps = Math.max(Math.floor(distance / 2), 1); // Un punto cada 2 píxeles
+
+        for (let i = 0; i <= steps; i++) {
+            const t = i / steps;
+            points.push({
+                x: start.x + dx * t,
+                y: start.y + dy * t
+            });
+        }
+        return points;
+    };
+
+    const sendPoint = (x: number, y: number) => {
+        console.log('Sending point:', { x, y });
+        onDraw({
+            x,
+            y,
+            color: '#000000',
+            lineWidth: 2
+        });
     };
 
     const handleStart = (clientX: number, clientY: number) => {
         if (!isDrawing) return;
-
-        const coords = getCanvasCoordinates(clientX, clientY);
+        console.log('Drawing started');
         isDrawingRef.current = true;
+        const coords = getCanvasCoordinates(clientX, clientY);
         lastPointRef.current = coords;
 
+        // Dibujar y enviar el primer punto
+        const ctx = canvasRef.current?.getContext('2d');
+        if (ctx) {
+            ctx.beginPath();
+            ctx.arc(coords.x, coords.y, 1, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        sendPoint(coords.x, coords.y);
+    };
+
+    const handleDraw = (clientX: number, clientY: number) => {
+        if (!isDrawing || !isDrawingRef.current) return;
+
+        const coords = getCanvasCoordinates(clientX, clientY);
+        
         // Dibujar localmente
         const ctx = canvasRef.current?.getContext('2d');
         if (ctx) {
             ctx.beginPath();
-            ctx.moveTo(coords.x, coords.y);
+            ctx.arc(coords.x, coords.y, 1, 0, Math.PI * 2);
+            ctx.fill();
         }
 
-        // Enviar datos de inicio
-        onDraw({
-            x: clientX - canvasRef.current!.getBoundingClientRect().left,
-            y: clientY - canvasRef.current!.getBoundingClientRect().top,
-            type: 'start',
-            color: '#000000',
-            lineWidth: 2
-        });
-    };
-
-    const handleDraw = (clientX: number, clientY: number) => {
-        if (!isDrawing || !isDrawingRef.current || !lastPointRef.current) return;
-
-        const coords = getCanvasCoordinates(clientX, clientY);
-
-        // Dibujar localmente
-        const ctx = canvasRef.current?.getContext('2d');
-        if (ctx) {
-            ctx.lineTo(coords.x, coords.y);
-            ctx.stroke();
-        }
-
-        // Enviar datos de dibujo
-        onDraw({
-            x: clientX - canvasRef.current!.getBoundingClientRect().left,
-            y: clientY - canvasRef.current!.getBoundingClientRect().top,
-            type: 'draw',
-            color: '#000000',
-            lineWidth: 2
-        });
-
+        // Enviar el punto actual
+        sendPoint(coords.x, coords.y);
         lastPointRef.current = coords;
     };
 
     const handleEnd = () => {
-        if (!isDrawing || !isDrawingRef.current) return;
-
+        if (!isDrawingRef.current) return;
+        console.log('Drawing ended');
         isDrawingRef.current = false;
         lastPointRef.current = null;
-
-        // Dibujar localmente
-        const ctx = canvasRef.current?.getContext('2d');
-        if (ctx) {
-            ctx.closePath();
-        }
-
-        // Enviar datos de fin
-        onDraw({
-            x: 0,
-            y: 0,
-            type: 'end',
-            color: '#000000',
-            lineWidth: 2
-        });
     };
 
     useEffect(() => {
@@ -175,10 +161,17 @@ const DrawingCanvas = forwardRef<HTMLCanvasElement, DrawingCanvasProps>((props, 
 
         const handleMouseMove = (e: MouseEvent) => {
             e.preventDefault();
-            handleDraw(e.clientX, e.clientY);
+            if (isDrawingRef.current) {
+                handleDraw(e.clientX, e.clientY);
+            }
         };
 
         const handleMouseUp = (e: MouseEvent) => {
+            e.preventDefault();
+            handleEnd();
+        };
+
+        const handleMouseLeave = (e: MouseEvent) => {
             e.preventDefault();
             handleEnd();
         };
@@ -191,8 +184,10 @@ const DrawingCanvas = forwardRef<HTMLCanvasElement, DrawingCanvasProps>((props, 
 
         const handleTouchMove = (e: TouchEvent) => {
             e.preventDefault();
-            const touch = e.touches[0];
-            handleDraw(touch.clientX, touch.clientY);
+            if (isDrawingRef.current) {
+                const touch = e.touches[0];
+                handleDraw(touch.clientX, touch.clientY);
+            }
         };
 
         const handleTouchEnd = (e: TouchEvent) => {
@@ -203,7 +198,7 @@ const DrawingCanvas = forwardRef<HTMLCanvasElement, DrawingCanvasProps>((props, 
         canvas.addEventListener('mousedown', handleMouseDown);
         canvas.addEventListener('mousemove', handleMouseMove);
         canvas.addEventListener('mouseup', handleMouseUp);
-        canvas.addEventListener('mouseleave', handleMouseUp);
+        canvas.addEventListener('mouseleave', handleMouseLeave);
         canvas.addEventListener('touchstart', handleTouchStart);
         canvas.addEventListener('touchmove', handleTouchMove);
         canvas.addEventListener('touchend', handleTouchEnd);
@@ -212,7 +207,7 @@ const DrawingCanvas = forwardRef<HTMLCanvasElement, DrawingCanvasProps>((props, 
             canvas.removeEventListener('mousedown', handleMouseDown);
             canvas.removeEventListener('mousemove', handleMouseMove);
             canvas.removeEventListener('mouseup', handleMouseUp);
-            canvas.removeEventListener('mouseleave', handleMouseUp);
+            canvas.removeEventListener('mouseleave', handleMouseLeave);
             canvas.removeEventListener('touchstart', handleTouchStart);
             canvas.removeEventListener('touchmove', handleTouchMove);
             canvas.removeEventListener('touchend', handleTouchEnd);

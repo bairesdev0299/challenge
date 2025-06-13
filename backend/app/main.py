@@ -124,18 +124,11 @@ class GameState:
         logger.info(f"Broadcasting drawing data: {drawing_data}")
         # Solo enviar a los jugadores que no están dibujando
         for player_name, websocket in self.players.items():
-            if player_name != self.current_turn:
+            if player_name != self.current_turn:  # No enviar al jugador que está dibujando
                 try:
-                    # Enviar todos los datos necesarios para el dibujo
                     message = {
                         "type": "drawing",
-                        "data": {
-                            "x": drawing_data.get("x", 0),
-                            "y": drawing_data.get("y", 0),
-                            "type": drawing_data.get("drawType", "draw"),
-                            "color": drawing_data.get("color", "#000000"),
-                            "lineWidth": drawing_data.get("lineWidth", 2)
-                        }
+                        "data": drawing_data
                     }
                     logger.info(f"Sending drawing data to {player_name}: {message}")
                     await websocket.send_json(message)
@@ -191,11 +184,11 @@ async def websocket_endpoint(websocket: WebSocket):
                     await game_state.add_player(player_name, websocket)
                     await game_state.broadcast_game_state()
 
-                elif message["type"] == "draw" and player_name == game_state.current_turn:
+                elif message["type"] == "drawing" and player_name == game_state.current_turn:
                     logger.info(f"Drawing from {player_name}: {message}")
                     # Validar que los datos de dibujo sean válidos
-                    if all(key in message for key in ["x", "y", "drawType"]):
-                        await game_state.broadcast_drawing(message)
+                    if "data" in message and all(key in message["data"] for key in ["x", "y"]):
+                        await game_state.broadcast_drawing(message["data"])
                     else:
                         logger.warning(f"Invalid drawing data received from {player_name}: {message}")
 
