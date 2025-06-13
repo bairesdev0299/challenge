@@ -6,6 +6,11 @@ from typing import List, Dict, Optional
 import logging
 from pydantic import BaseModel
 import asyncio
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
@@ -13,17 +18,20 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
-# Configurar CORS
-origins = [
-    "http://localhost:3000",
-    "http://localhost:3001",
-    "http://127.0.0.1:3000",
-    "http://127.0.0.1:3001",
-]
+# Get configuration from environment variables
+HOST = os.getenv("HOST", "0.0.0.0")
+PORT = int(os.getenv("PORT", "8000"))
+DEBUG = os.getenv("DEBUG", "True").lower() == "true"
+CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
+ROUND_TIME = int(os.getenv("ROUND_TIME", "60"))
+MIN_PLAYERS = int(os.getenv("MIN_PLAYERS", "2"))
+MAX_PLAYERS = int(os.getenv("MAX_PLAYERS", "8"))
+MAX_ROUNDS = int(os.getenv("MAX_ROUNDS", "10"))
 
+# Configurar CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -37,7 +45,10 @@ class GameState:
         self.current_turn: Optional[str] = None
         self.current_word: Optional[str] = None
         self.rounds_played: int = 0
-        self.max_rounds: int = 10  # 10 rondas en total
+        self.max_rounds: int = MAX_ROUNDS
+        self.round_time: int = ROUND_TIME
+        self.min_players: int = MIN_PLAYERS
+        self.max_players: int = MAX_PLAYERS
         self.words = [
             "casa", "perro", "gato", "árbol", "sol", "luna", "estrella",
             "montaña", "río", "mar", "avión", "tren", "bicicleta", "coche",
@@ -238,4 +249,4 @@ async def send_ping(websocket: WebSocket):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000) 
+    uvicorn.run(app, host=HOST, port=PORT) 

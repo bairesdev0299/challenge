@@ -20,12 +20,26 @@ Un juego de Pictionary en tiempo real donde los jugadores pueden dibujar y adivi
    cd backend
    ```
 
-2. Instala las dependencias:
+2. Crea y activa el entorno virtual:
+   ```bash
+   python3 -m venv venv
+   source venv/bin/activate  # En Unix/MacOS
+   # o
+   .\venv\Scripts\activate  # En Windows
+   ```
+
+3. Instala las dependencias:
    ```bash
    pip install -r requirements.txt
    ```
 
-3. Inicia el servidor:
+4. Configura las variables de entorno:
+   ```bash
+   cp .env.example .env
+   ```
+   Edita el archivo `.env` con tus configuraciones específicas.
+
+5. Inicia el servidor:
    ```bash
    uvicorn app.main:app --reload
    ```
