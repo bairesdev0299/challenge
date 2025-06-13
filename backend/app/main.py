@@ -126,13 +126,15 @@ class GameState:
         for player_name, websocket in self.players.items():
             if player_name != self.current_turn:
                 try:
-                    # Optimizar el mensaje para reducir el tamaño
+                    # Enviar todos los datos necesarios para el dibujo
                     message = {
                         "type": "drawing",
                         "data": {
                             "x": drawing_data.get("x", 0),
                             "y": drawing_data.get("y", 0),
-                            "type": drawing_data.get("drawType", "draw")
+                            "type": drawing_data.get("drawType", "draw"),
+                            "color": drawing_data.get("color", "#000000"),
+                            "lineWidth": drawing_data.get("lineWidth", 2)
                         }
                     }
                     await websocket.send_json(message)

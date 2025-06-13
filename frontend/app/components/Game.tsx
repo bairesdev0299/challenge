@@ -1,194 +1,199 @@
 'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useWebSocketContext } from '../contexts/WebSocketContext';
 import DrawingCanvas from './DrawingCanvas';
 
 interface GameProps {
-  initialGameState: any;
+    initialGameState: any;
 }
 
 export default function Game({ initialGameState }: GameProps) {
-  const [gameState, setGameState] = useState(initialGameState);
-  const [error, setError] = useState<string | null>(null);
-  const [guess, setGuess] = useState('');
-  const [messages, setMessages] = useState<string[]>([]);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const { isConnected, error: wsError, sendMessage, addMessageHandler, removeMessageHandler } = useWebSocketContext();
+    const { sendMessage, addMessageHandler, removeMessageHandler } = useWebSocketContext();
+    const [gameState, setGameState] = useState(initialGameState);
+    const [messages, setMessages] = useState<string[]>([]);
+    const [guess, setGuess] = useState('');
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const isCurrentPlayer = gameState?.currentTurn === gameState?.players?.find((p: any) => p.isCurrentUser)?.name;
 
-  // Determinar si soy el jugador actual
-  const isCurrentPlayer = gameState?.currentTurn === gameState?.players.find((p: any) => p.isCurrentUser)?.name;
+    useEffect(() => {
+        const handleMessage = (message: any) => {
+            console.log('Received message:', message);
+            
+            if (message.type === 'drawing' && !isCurrentPlayer) {
+                console.log('Processing drawing message:', message.data);
+                const canvas = canvasRef.current;
+                if (!canvas) {
+                    console.error('No canvas available');
+                    return;
+                }
 
-  const handleDraw = useCallback((data: { x: number; y: number; type: string }) => {
-    console.log('Drawing data:', data);
-    sendMessage({
-      type: 'draw',
-      x: data.x,
-      y: data.y,
-      drawType: data.type
-    });
-  }, [sendMessage]);
+                const ctx = canvas.getContext('2d');
+                if (!ctx) {
+                    console.error('No canvas context available');
+                    return;
+                }
 
-  useEffect(() => {
-    const handleMessage = (message: any) => {
-      console.log('Received message:', message);
-      switch (message.type) {
-        case 'game_state':
-          setGameState(message.state);
-          break;
-        case 'drawing':
-          console.log('Received drawing data:', message.data);
-          console.log('Current player:', gameState?.currentTurn);
-          console.log('Is current player:', isCurrentPlayer);
-          if (canvasRef.current) {
-            const ctx = canvasRef.current.getContext('2d');
-            if (!ctx) {
-              console.error('Could not get canvas context');
-              return;
+                const { x, y, type, color, lineWidth } = message.data;
+                
+                // Configurar el estilo del trazo
+                ctx.strokeStyle = color || '#000000';
+                ctx.lineWidth = lineWidth || 2;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+
+                // Ajustar las coordenadas al tamaño del canvas
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+                const adjustedX = x * scaleX;
+                const adjustedY = y * scaleY;
+
+                switch (type) {
+                    case 'start':
+                        console.log('Starting new path at:', adjustedX, adjustedY);
+                        ctx.beginPath();
+                        ctx.moveTo(adjustedX, adjustedY);
+                        break;
+                    case 'draw':
+                        console.log('Drawing line to:', adjustedX, adjustedY);
+                        ctx.lineTo(adjustedX, adjustedY);
+                        ctx.stroke();
+                        break;
+                    case 'end':
+                        console.log('Ending path');
+                        ctx.closePath();
+                        break;
+                    default:
+                        console.warn('Unknown drawing type:', type);
+                }
             }
 
-            const { x, y, type } = message.data;
-            console.log('Drawing point:', { x, y, type });
-            if (type === 'start') {
-              console.log('Starting new path');
-              ctx.beginPath();
-              ctx.moveTo(x, y);
-            } else if (type === 'draw') {
-              console.log('Drawing line');
-              ctx.lineTo(x, y);
-              ctx.stroke();
-            } else if (type === 'end') {
-              console.log('Ending path');
-              ctx.closePath();
+            switch (message.type) {
+                case 'game_state':
+                    setGameState(message.state);
+                    break;
+                case 'correct_guess':
+                    setMessages(prev => [...prev, `${message.player} adivinó la palabra: ${message.word}!`]);
+                    break;
             }
-          } else {
-            console.error('Canvas ref is null');
-          }
-          break;
-        case 'correct_guess':
-          setMessages(prev => [...prev, `${message.player} adivinó la palabra: ${message.word}!`]);
-          break;
-        case 'player_joined':
-          setMessages(prev => [...prev, `${message.player} se unió al juego`]);
-          break;
-        case 'player_left':
-          setMessages(prev => [...prev, `${message.player} abandonó el juego`]);
-          break;
-        case 'game_over':
-          setMessages(prev => [...prev, '¡Juego terminado!']);
-          break;
-        case 'error':
-          setMessages(prev => [...prev, `Error: ${message.message}`]);
-          break;
-      }
-    };
+        };
 
-    addMessageHandler(handleMessage);
-    return () => removeMessageHandler(handleMessage);
-  }, [addMessageHandler, removeMessageHandler, gameState?.currentTurn, isCurrentPlayer]);
+        addMessageHandler(handleMessage);
+        return () => removeMessageHandler(handleMessage);
+    }, [addMessageHandler, removeMessageHandler, isCurrentPlayer]);
 
-  const handleGuess = useCallback((e: React.FormEvent) => {
-    e.preventDefault();
-    if (!isConnected) return;
-    if (guess.trim() && !isCurrentPlayer) {
-      console.log('Sending guess:', guess.trim());
-      sendMessage({
-        type: 'guess',
-        guess: guess.trim(),
-      });
-      setGuess('');
+    const handleDraw = useCallback((drawingData: any) => {
+        if (isCurrentPlayer) {
+            console.log('Sending drawing data:', drawingData);
+            sendMessage({
+                type: 'draw',
+                x: drawingData.x,
+                y: drawingData.y,
+                drawType: drawingData.type,
+                color: drawingData.color,
+                lineWidth: drawingData.lineWidth
+            });
+        }
+    }, [isCurrentPlayer, sendMessage]);
+
+    const handleGuess = useCallback((e: React.FormEvent) => {
+        e.preventDefault();
+        if (guess.trim() && !isCurrentPlayer) {
+            sendMessage({
+                type: 'guess',
+                guess: guess.trim()
+            });
+            setGuess('');
+        }
+    }, [guess, isCurrentPlayer, sendMessage]);
+
+    // Limpiar el canvas cuando cambia el turno
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (canvas) {
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+        }
+    }, [gameState?.currentTurn]);
+
+    if (!gameState) {
+        return <div>Loading game state...</div>;
     }
-  }, [isConnected, isCurrentPlayer, guess, sendMessage]);
 
-  if (!isConnected) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center p-24">
-        <div className="text-center">
-          <h1 className="text-4xl font-bold mb-4">Connecting to game server...</h1>
-          {wsError && <p className="text-red-500 mt-2">{wsError}</p>}
+        <div className="flex flex-col items-center gap-4 p-4">
+            <div className="w-full max-w-2xl">
+                <div className="bg-white rounded-lg shadow-md p-4 mb-4">
+                    <h2 className="text-xl font-bold mb-2">Turno actual: {gameState.currentTurn}</h2>
+                    <div className="mb-4">
+                        <h3 className="font-semibold">Jugadores:</h3>
+                        <ul className="list-disc list-inside">
+                            {gameState.players.map((player: any) => (
+                                <li key={player.name} className={player.isCurrentUser ? 'text-blue-600 font-bold' : ''}>
+                                    {player.name} - {player.score} puntos
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                    <div className="mb-4">
+                        <p>Ronda {gameState.roundsPlayed} de {gameState.maxRounds}</p>
+                    </div>
+                </div>
+
+                <div className="bg-white rounded-lg shadow-md p-4 mb-4">
+                    {isCurrentPlayer ? (
+                        <div className="text-center mb-4">
+                            <p className="text-lg font-semibold">Tu turno de dibujar!</p>
+                            <p className="text-xl font-bold text-blue-600">Palabra: {gameState.word}</p>
+                        </div>
+                    ) : (
+                        <div className="text-center mb-4">
+                            <p className="text-lg font-semibold">Turno de {gameState.currentTurn}</p>
+                            <p className="text-gray-600">¡Adivina qué está dibujando!</p>
+                        </div>
+                    )}
+
+                    <div className="flex justify-center mb-4">
+                        <DrawingCanvas
+                            ref={canvasRef}
+                            isDrawing={isCurrentPlayer}
+                            onDraw={handleDraw}
+                            width={800}
+                            height={600}
+                        />
+                    </div>
+
+                    {!isCurrentPlayer && (
+                        <form onSubmit={handleGuess} className="flex gap-2">
+                            <input
+                                type="text"
+                                value={guess}
+                                onChange={(e) => setGuess(e.target.value)}
+                                placeholder="Escribe tu adivinanza..."
+                                className="flex-1 p-2 border rounded"
+                            />
+                            <button
+                                type="submit"
+                                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                            >
+                                Adivinar
+                            </button>
+                        </form>
+                    )}
+                </div>
+
+                <div className="bg-white rounded-lg shadow-md p-4">
+                    <h3 className="font-semibold mb-2">Mensajes:</h3>
+                    <div className="h-32 overflow-y-auto">
+                        {messages.map((msg, index) => (
+                            <p key={index} className="mb-1">{msg}</p>
+                        ))}
+                    </div>
+                </div>
+            </div>
         </div>
-      </div>
     );
-  }
-
-  if (error) {
-    return (
-      <div className="flex min-h-screen flex-col items-center justify-center p-24">
-        <div className="text-center">
-          <h1 className="text-4xl font-bold mb-4 text-red-500">Error</h1>
-          <p className="text-lg">{error}</p>
-        </div>
-      </div>
-    );
-  }
-
-  const currentDrawer = gameState.players.find((p: any) => p.name === gameState.currentTurn);
-  const currentWord = gameState.word;
-
-  return (
-    <div className="flex flex-col items-center gap-4 p-4">
-      <div className="w-full max-w-4xl">
-        <div className="mb-4">
-          <h2 className="text-xl font-bold">Pictionary Game</h2>
-          <p>Players: {gameState.players.map((p: any) => `${p.name} (${p.score})`).join(', ')}</p>
-          <p>Round: {gameState.roundsPlayed + 1}/{gameState.maxRounds}</p>
-          
-          {/* Mostrar información del turno actual */}
-          <div className="mt-2 p-2 bg-gray-100 rounded">
-            {isCurrentPlayer ? (
-              <div>
-                <p className="text-green-600 font-bold">¡Es tu turno de dibujar!</p>
-                {currentWord && (
-                  <p className="text-lg">Palabra a dibujar: <span className="font-bold">{currentWord}</span></p>
-                )}
-              </div>
-            ) : (
-              <div>
-                <p className="text-blue-600">Es el turno de <span className="font-bold">{currentDrawer?.name}</span></p>
-                <p className="text-lg">¡Adivina qué está dibujando!</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="relative">
-          <DrawingCanvas
-            ref={canvasRef}
-            isDrawing={isCurrentPlayer}
-            onDraw={handleDraw}
-            width={800}
-            height={600}
-          />
-          {!isCurrentPlayer && (
-            <form onSubmit={handleGuess} className="mt-4">
-              <input
-                type="text"
-                value={guess}
-                onChange={(e) => setGuess(e.target.value)}
-                placeholder="Escribe tu adivinanza..."
-                className="w-full p-2 border rounded"
-              />
-              <button
-                type="submit"
-                className="mt-2 w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600"
-              >
-                Adivinar
-              </button>
-            </form>
-          )}
-        </div>
-
-        <div className="mt-4">
-          <h3 className="font-bold">Mensajes:</h3>
-          <div className="h-32 overflow-y-auto border rounded p-2">
-            {messages.map((msg, i) => (
-              <div key={i} className="mb-1">
-                {msg}
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
 } 

@@ -1,159 +1,199 @@
 'use client';
 
-import React, { forwardRef, useImperativeHandle, useRef, useEffect, useCallback } from 'react';
+import React, { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 
 interface DrawingCanvasProps {
-  isDrawing: boolean;
-  onDraw: (data: { x: number; y: number; type: string }) => void;
-  width: number;
-  height: number;
+    isDrawing: boolean;
+    onDraw: (data: any) => void;
+    width: number;
+    height: number;
 }
 
-const DrawingCanvas = forwardRef<HTMLCanvasElement, DrawingCanvasProps>(
-  ({ isDrawing, onDraw, width, height }, ref) => {
+const DrawingCanvas = forwardRef<HTMLCanvasElement, DrawingCanvasProps>((props, ref) => {
+    const { isDrawing, onDraw, width, height } = props;
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const isDrawingRef = useRef(false);
     const lastPointRef = useRef<{ x: number; y: number } | null>(null);
-    const lastSentPointRef = useRef<{ x: number; y: number } | null>(null);
-    const lastSendTimeRef = useRef(0);
-    const MIN_DISTANCE = 5; // Distancia mínima entre puntos para enviar
-    const MIN_TIME = 16; // Tiempo mínimo entre envíos (60fps)
+    const lastTimeRef = useRef<number>(0);
 
     useImperativeHandle(ref, () => canvasRef.current!);
 
     useEffect(() => {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
+        const canvas = canvasRef.current;
+        if (!canvas) return;
 
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
+        // Configurar el tamaño del canvas
+        canvas.width = width;
+        canvas.height = height;
 
-      // Set canvas size
-      canvas.width = width;
-      canvas.height = height;
-
-      // Set default styles
-      ctx.strokeStyle = '#000000';
-      ctx.lineWidth = 2;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
+        // Configurar el estilo por defecto
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 2;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+        }
     }, [width, height]);
 
-    const getCoordinates = (event: MouseEvent | TouchEvent): { x: number; y: number } => {
-      const canvas = canvasRef.current;
-      if (!canvas) return { x: 0, y: 0 };
+    const getCanvasCoordinates = (clientX: number, clientY: number) => {
+        const canvas = canvasRef.current;
+        if (!canvas) return { x: 0, y: 0 };
 
-      const rect = canvas.getBoundingClientRect();
-      const clientX = 'touches' in event ? event.touches[0].clientX : event.clientX;
-      const clientY = 'touches' in event ? event.touches[0].clientY : event.clientY;
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
 
-      return {
-        x: Math.round(clientX - rect.left),
-        y: Math.round(clientY - rect.top),
-      };
+        return {
+            x: (clientX - rect.left) * scaleX,
+            y: (clientY - rect.top) * scaleY
+        };
     };
 
-    const shouldSendPoint = useCallback((point: { x: number; y: number }) => {
-      const now = Date.now();
-      const lastPoint = lastSentPointRef.current;
-      
-      if (!lastPoint) return true;
-      
-      const distance = Math.sqrt(
-        Math.pow(point.x - lastPoint.x, 2) + 
-        Math.pow(point.y - lastPoint.y, 2)
-      );
-      
-      return distance >= MIN_DISTANCE && (now - lastSendTimeRef.current) >= MIN_TIME;
-    }, []);
+    const handleStart = (clientX: number, clientY: number) => {
+        if (!isDrawing) return;
 
-    const startDrawing = (event: MouseEvent | TouchEvent) => {
-      if (!isDrawing) return;
-      event.preventDefault();
-      isDrawingRef.current = true;
-      const point = getCoordinates(event);
-      lastPointRef.current = point;
-      lastSentPointRef.current = point;
-      lastSendTimeRef.current = Date.now();
-      onDraw({ ...point, type: 'start' });
+        const coords = getCanvasCoordinates(clientX, clientY);
+        isDrawingRef.current = true;
+        lastPointRef.current = coords;
+        lastTimeRef.current = Date.now();
+
+        // Dibujar localmente
+        const ctx = canvasRef.current?.getContext('2d');
+        if (ctx) {
+            ctx.beginPath();
+            ctx.moveTo(coords.x, coords.y);
+        }
+
+        // Enviar datos de inicio
+        onDraw({
+            x: clientX - canvasRef.current!.getBoundingClientRect().left,
+            y: clientY - canvasRef.current!.getBoundingClientRect().top,
+            type: 'start',
+            color: '#000000',
+            lineWidth: 2
+        });
     };
 
-    const draw = (event: MouseEvent | TouchEvent) => {
-      if (!isDrawing || !isDrawingRef.current) return;
-      event.preventDefault();
-      const point = getCoordinates(event);
-      const lastPoint = lastPointRef.current;
-      if (!lastPoint) return;
+    const handleDraw = (clientX: number, clientY: number) => {
+        if (!isDrawing || !isDrawingRef.current || !lastPointRef.current) return;
 
-      const ctx = canvasRef.current?.getContext('2d');
-      if (!ctx) return;
+        const coords = getCanvasCoordinates(clientX, clientY);
+        const now = Date.now();
+        const timeDiff = now - lastTimeRef.current;
 
-      // Dibujar localmente
-      ctx.beginPath();
-      ctx.moveTo(lastPoint.x, lastPoint.y);
-      ctx.lineTo(point.x, point.y);
-      ctx.stroke();
+        // Solo enviar actualizaciones si han pasado al menos 16ms (60fps)
+        if (timeDiff >= 16) {
+            // Dibujar localmente
+            const ctx = canvasRef.current?.getContext('2d');
+            if (ctx) {
+                ctx.lineTo(coords.x, coords.y);
+                ctx.stroke();
+            }
 
-      // Enviar punto solo si cumple con los criterios
-      if (shouldSendPoint(point)) {
-        onDraw({ ...point, type: 'draw' });
-        lastSentPointRef.current = point;
-        lastSendTimeRef.current = Date.now();
-      }
+            // Enviar datos de dibujo
+            onDraw({
+                x: clientX - canvasRef.current!.getBoundingClientRect().left,
+                y: clientY - canvasRef.current!.getBoundingClientRect().top,
+                type: 'draw',
+                color: '#000000',
+                lineWidth: 2
+            });
 
-      lastPointRef.current = point;
+            lastPointRef.current = coords;
+            lastTimeRef.current = now;
+        }
     };
 
-    const stopDrawing = (event: MouseEvent | TouchEvent) => {
-      if (!isDrawing) return;
-      event.preventDefault();
-      isDrawingRef.current = false;
-      const point = lastPointRef.current;
-      if (point) {
-        onDraw({ ...point, type: 'end' });
-      }
-      lastPointRef.current = null;
-      lastSentPointRef.current = null;
+    const handleEnd = () => {
+        if (!isDrawing || !isDrawingRef.current) return;
+
+        isDrawingRef.current = false;
+        lastPointRef.current = null;
+
+        // Dibujar localmente
+        const ctx = canvasRef.current?.getContext('2d');
+        if (ctx) {
+            ctx.closePath();
+        }
+
+        // Enviar datos de fin
+        onDraw({
+            x: 0,
+            y: 0,
+            type: 'end',
+            color: '#000000',
+            lineWidth: 2
+        });
     };
 
     useEffect(() => {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
+        const canvas = canvasRef.current;
+        if (!canvas) return;
 
-      // Mouse events
-      canvas.addEventListener('mousedown', startDrawing);
-      canvas.addEventListener('mousemove', draw);
-      canvas.addEventListener('mouseup', stopDrawing);
-      canvas.addEventListener('mouseleave', stopDrawing);
+        const handleMouseDown = (e: MouseEvent) => {
+            e.preventDefault();
+            handleStart(e.clientX, e.clientY);
+        };
 
-      // Touch events
-      canvas.addEventListener('touchstart', startDrawing);
-      canvas.addEventListener('touchmove', draw);
-      canvas.addEventListener('touchend', stopDrawing);
+        const handleMouseMove = (e: MouseEvent) => {
+            e.preventDefault();
+            handleDraw(e.clientX, e.clientY);
+        };
 
-      return () => {
-        canvas.removeEventListener('mousedown', startDrawing);
-        canvas.removeEventListener('mousemove', draw);
-        canvas.removeEventListener('mouseup', stopDrawing);
-        canvas.removeEventListener('mouseleave', stopDrawing);
-        canvas.removeEventListener('touchstart', startDrawing);
-        canvas.removeEventListener('touchmove', draw);
-        canvas.removeEventListener('touchend', stopDrawing);
-      };
-    }, [isDrawing]);
+        const handleMouseUp = (e: MouseEvent) => {
+            e.preventDefault();
+            handleEnd();
+        };
+
+        const handleTouchStart = (e: TouchEvent) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            handleStart(touch.clientX, touch.clientY);
+        };
+
+        const handleTouchMove = (e: TouchEvent) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            handleDraw(touch.clientX, touch.clientY);
+        };
+
+        const handleTouchEnd = (e: TouchEvent) => {
+            e.preventDefault();
+            handleEnd();
+        };
+
+        canvas.addEventListener('mousedown', handleMouseDown);
+        canvas.addEventListener('mousemove', handleMouseMove);
+        canvas.addEventListener('mouseup', handleMouseUp);
+        canvas.addEventListener('mouseleave', handleMouseUp);
+        canvas.addEventListener('touchstart', handleTouchStart);
+        canvas.addEventListener('touchmove', handleTouchMove);
+        canvas.addEventListener('touchend', handleTouchEnd);
+
+        return () => {
+            canvas.removeEventListener('mousedown', handleMouseDown);
+            canvas.removeEventListener('mousemove', handleMouseMove);
+            canvas.removeEventListener('mouseup', handleMouseUp);
+            canvas.removeEventListener('mouseleave', handleMouseUp);
+            canvas.removeEventListener('touchstart', handleTouchStart);
+            canvas.removeEventListener('touchmove', handleTouchMove);
+            canvas.removeEventListener('touchend', handleTouchEnd);
+        };
+    }, [isDrawing, onDraw]);
 
     return (
-      <canvas
-        ref={canvasRef}
-        style={{
-          border: '1px solid #ccc',
-          touchAction: 'none',
-          cursor: isDrawing ? 'crosshair' : 'default',
-        }}
-      />
+        <canvas
+            ref={canvasRef}
+            style={{
+                border: '1px solid #ccc',
+                cursor: isDrawing ? 'crosshair' : 'default',
+                touchAction: 'none',
+                backgroundColor: 'white'
+            }}
+        />
     );
-  }
-);
+});
 
 DrawingCanvas.displayName = 'DrawingCanvas';
 
