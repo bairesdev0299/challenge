@@ -1,6 +1,8 @@
 # Pictionary Game
 
-Un juego de Pictionary en tiempo real donde los jugadores pueden dibujar y adivinar palabras.
+Un juego de Pictionary en tiempo real donde los jugadores pueden dibujar y adivinar palabras*.
+
+* al momento funciona bien con rectas, la interpolación curva no llegó a lograrse.
 
 ## Requisitos
 

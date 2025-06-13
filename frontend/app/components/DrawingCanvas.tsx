@@ -98,13 +98,14 @@ const DrawingCanvas = forwardRef<HTMLCanvasElement, DrawingCanvasProps>((props, 
         return points;
     };
 
-    const sendPoint = (x: number, y: number) => {
-        console.log('Sending point:', { x, y });
+    const sendPoint = (x: number, y: number, isNewPath: boolean = false) => {
+        console.log('Sending point:', { x, y, isNewPath });
         onDraw({
             x,
             y,
             color: '#000000',
-            lineWidth: 2
+            lineWidth: 2,
+            isNewPath
         });
     };
 
@@ -122,7 +123,7 @@ const DrawingCanvas = forwardRef<HTMLCanvasElement, DrawingCanvasProps>((props, 
             ctx.arc(coords.x, coords.y, 1, 0, Math.PI * 2);
             ctx.fill();
         }
-        sendPoint(coords.x, coords.y);
+        sendPoint(coords.x, coords.y, true);
     };
 
     const handleDraw = (clientX: number, clientY: number) => {
@@ -139,9 +140,9 @@ const DrawingCanvas = forwardRef<HTMLCanvasElement, DrawingCanvasProps>((props, 
             ctx.beginPath();
             ctx.moveTo(lastPointRef.current.x, lastPointRef.current.y);
             
-            interpolatedPoints.forEach(point => {
+            interpolatedPoints.forEach((point, index) => {
                 ctx.lineTo(point.x, point.y);
-                sendPoint(point.x, point.y);
+                sendPoint(point.x, point.y, index === 0);
             });
             
             ctx.stroke();

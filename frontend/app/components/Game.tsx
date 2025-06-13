@@ -29,6 +29,7 @@ export default function Game({ initialGameState }: GameProps) {
             console.log('Parsed message:', parsedMessage);
             
             if (parsedMessage.type === 'drawing') {
+                console.log('Drawing message received by Game:', parsedMessage.data);
                 const isCurrentPlayerDrawing = gameState?.currentTurn === gameState?.players?.find((p: any) => p.isCurrentUser)?.name;
                 console.log('Drawing message details:', {
                     messageType: parsedMessage.type,
@@ -66,12 +67,7 @@ export default function Game({ initialGameState }: GameProps) {
         console.log('Drawing point to send:', drawingData);
         sendMessage({
             type: 'drawing',
-            data: {
-                x: drawingData.x,
-                y: drawingData.y,
-                color: drawingData.color,
-                lineWidth: drawingData.lineWidth
-            }
+            data: drawingData
         });
         console.log('=== END SENDING DRAWING POINT ===');
     };
@@ -86,6 +82,12 @@ export default function Game({ initialGameState }: GameProps) {
             setGuess('');
         }
     }, [guess, isCurrentPlayer, sendMessage]);
+
+    const handleResetGame = useCallback(() => {
+        sendMessage({
+            type: 'reset_game'
+        });
+    }, [sendMessage]);
 
     // Efecto para limpiar el canvas cuando cambia el turno
     useEffect(() => {
@@ -112,6 +114,13 @@ export default function Game({ initialGameState }: GameProps) {
                 {isDrawing ? `Tu turno - Dibuja: ${gameState?.word}` : 'Espera tu turno'}
             </div>
             
+            <button
+                onClick={handleResetGame}
+                className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 mb-4"
+            >
+                Reiniciar Juego
+            </button>
+
             <div className="relative">
                 <DrawingCanvas
                     ref={canvasRef}

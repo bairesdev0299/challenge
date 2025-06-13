@@ -59,9 +59,10 @@ const DrawingReceiver: React.FC<DrawingReceiverProps> = ({ width, height, drawin
         const y = Number(drawingData.y);
         const lineWidth = Number(drawingData.lineWidth) || 2;
         const color = drawingData.color || '#000000';
+        const isNewPath = drawingData.isNewPath;
 
         console.log('=== DRAWING RECEIVER ===');
-        console.log('Drawing point:', { x, y, color, lineWidth });
+        console.log('Drawing point:', { x, y, color, lineWidth, isNewPath });
 
         // Configurar el estilo del trazo
         ctx.strokeStyle = color;
@@ -69,27 +70,17 @@ const DrawingReceiver: React.FC<DrawingReceiverProps> = ({ width, height, drawin
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
 
-        // Si hay un último punto, interpolar y dibujar
-        if (lastPointRef.current) {
-            const interpolatedPoints = interpolatePoints(lastPointRef.current, { x, y });
-            
+        // Si es un nuevo trazo o no hay último punto, comenzar un nuevo path
+        if (isNewPath || !lastPointRef.current) {
             ctx.beginPath();
-            ctx.moveTo(lastPointRef.current.x, lastPointRef.current.y);
-            
-            interpolatedPoints.forEach(point => {
-                ctx.lineTo(point.x, point.y);
-            });
-            
-            ctx.stroke();
+            ctx.moveTo(x, y);
+            lastPointRef.current = { x, y };
         } else {
-            // Si no hay último punto, dibujar un punto
-            ctx.beginPath();
-            ctx.arc(x, y, lineWidth/2, 0, Math.PI * 2);
-            ctx.fill();
+            // Si hay un último punto, dibujar una línea hasta el nuevo punto
+            ctx.lineTo(x, y);
+            ctx.stroke();
+            lastPointRef.current = { x, y };
         }
-
-        // Actualizar el último punto
-        lastPointRef.current = { x, y };
         
         console.log('=== END DRAWING RECEIVER ===');
     }, [drawingData]);

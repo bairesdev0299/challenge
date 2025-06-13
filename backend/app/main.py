@@ -168,6 +168,17 @@ class GameState:
             except Exception as e:
                 logger.error(f"Error broadcasting correct guess: {str(e)}")
 
+    async def reset_game(self):
+        """Reset the game state while keeping active players"""
+        logger.info("Resetting game state")
+        # Reset scores
+        for player in self.players:
+            self.scores[player] = 0
+        # Reset rounds
+        self.rounds_played = 0
+        # Start new round
+        await self.start_new_round()
+
 # Global game state
 game_state = GameState()
 
@@ -206,6 +217,10 @@ async def websocket_endpoint(websocket: WebSocket):
                 elif message["type"] == "guess":
                     logger.info(f"Guess from {player_name}: {message['guess']}")
                     await game_state.handle_guess(player_name, message["guess"])
+
+                elif message["type"] == "reset_game":
+                    logger.info(f"Reset game requested by {player_name}")
+                    await game_state.reset_game()
 
                 elif message["type"] == "pong":
                     # Handle pong response
