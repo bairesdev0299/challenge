@@ -7,16 +7,60 @@ interface DrawingCanvasProps {
     onDraw: (data: any) => void;
     width: number;
     height: number;
+    drawingData?: any; // Datos de dibujo recibidos
 }
 
 const DrawingCanvas = forwardRef<HTMLCanvasElement, DrawingCanvasProps>((props, ref) => {
-    const { isDrawing, onDraw, width, height } = props;
+    const { isDrawing, onDraw, width, height, drawingData } = props;
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const isDrawingRef = useRef(false);
     const lastPointRef = useRef<{ x: number; y: number } | null>(null);
-    const lastTimeRef = useRef<number>(0);
 
     useImperativeHandle(ref, () => canvasRef.current!);
+
+    // Efecto para manejar datos de dibujo recibidos
+    useEffect(() => {
+        if (!drawingData || isDrawing) return;
+
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        const { x, y, type, color, lineWidth } = drawingData;
+        console.log('Processing received drawing data:', drawingData);
+
+        // Configurar el estilo del trazo
+        ctx.strokeStyle = color || '#000000';
+        ctx.lineWidth = lineWidth || 2;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        // Ajustar las coordenadas al tamaño del canvas
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        const adjustedX = x * scaleX;
+        const adjustedY = y * scaleY;
+
+        switch (type) {
+            case 'start':
+                console.log('Starting new path at:', adjustedX, adjustedY);
+                ctx.beginPath();
+                ctx.moveTo(adjustedX, adjustedY);
+                break;
+            case 'draw':
+                console.log('Drawing line to:', adjustedX, adjustedY);
+                ctx.lineTo(adjustedX, adjustedY);
+                ctx.stroke();
+                break;
+            case 'end':
+                console.log('Ending path');
+                ctx.closePath();
+                break;
+        }
+    }, [drawingData, isDrawing]);
 
     useEffect(() => {
         const canvas = canvasRef.current;
@@ -56,7 +100,6 @@ const DrawingCanvas = forwardRef<HTMLCanvasElement, DrawingCanvasProps>((props, 
         const coords = getCanvasCoordinates(clientX, clientY);
         isDrawingRef.current = true;
         lastPointRef.current = coords;
-        lastTimeRef.current = Date.now();
 
         // Dibujar localmente
         const ctx = canvasRef.current?.getContext('2d');
@@ -79,30 +122,24 @@ const DrawingCanvas = forwardRef<HTMLCanvasElement, DrawingCanvasProps>((props, 
         if (!isDrawing || !isDrawingRef.current || !lastPointRef.current) return;
 
         const coords = getCanvasCoordinates(clientX, clientY);
-        const now = Date.now();
-        const timeDiff = now - lastTimeRef.current;
 
-        // Solo enviar actualizaciones si han pasado al menos 16ms (60fps)
-        if (timeDiff >= 16) {
-            // Dibujar localmente
-            const ctx = canvasRef.current?.getContext('2d');
-            if (ctx) {
-                ctx.lineTo(coords.x, coords.y);
-                ctx.stroke();
-            }
-
-            // Enviar datos de dibujo
-            onDraw({
-                x: clientX - canvasRef.current!.getBoundingClientRect().left,
-                y: clientY - canvasRef.current!.getBoundingClientRect().top,
-                type: 'draw',
-                color: '#000000',
-                lineWidth: 2
-            });
-
-            lastPointRef.current = coords;
-            lastTimeRef.current = now;
+        // Dibujar localmente
+        const ctx = canvasRef.current?.getContext('2d');
+        if (ctx) {
+            ctx.lineTo(coords.x, coords.y);
+            ctx.stroke();
         }
+
+        // Enviar datos de dibujo
+        onDraw({
+            x: clientX - canvasRef.current!.getBoundingClientRect().left,
+            y: clientY - canvasRef.current!.getBoundingClientRect().top,
+            type: 'draw',
+            color: '#000000',
+            lineWidth: 2
+        });
+
+        lastPointRef.current = coords;
     };
 
     const handleEnd = () => {

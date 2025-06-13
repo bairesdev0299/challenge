@@ -137,8 +137,8 @@ class GameState:
                             "lineWidth": drawing_data.get("lineWidth", 2)
                         }
                     }
+                    logger.info(f"Sending drawing data to {player_name}: {message}")
                     await websocket.send_json(message)
-                    logger.info(f"Drawing data sent to {player_name}")
                 except Exception as e:
                     logger.error(f"Error broadcasting drawing to {player_name}: {str(e)}")
 

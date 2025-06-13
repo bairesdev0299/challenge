@@ -13,66 +13,29 @@ export default function Game({ initialGameState }: GameProps) {
     const [gameState, setGameState] = useState(initialGameState);
     const [messages, setMessages] = useState<string[]>([]);
     const [guess, setGuess] = useState('');
+    const [currentDrawingData, setCurrentDrawingData] = useState<any>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const isCurrentPlayer = gameState?.currentTurn === gameState?.players?.find((p: any) => p.isCurrentUser)?.name;
+    const [isDrawing, setIsDrawing] = useState(false);
 
     useEffect(() => {
         const handleMessage = (message: any) => {
             console.log('Received message:', message);
             
-            if (message.type === 'drawing' && !isCurrentPlayer) {
-                console.log('Processing drawing message:', message.data);
-                const canvas = canvasRef.current;
-                if (!canvas) {
-                    console.error('No canvas available');
-                    return;
-                }
-
-                const ctx = canvas.getContext('2d');
-                if (!ctx) {
-                    console.error('No canvas context available');
-                    return;
-                }
-
-                const { x, y, type, color, lineWidth } = message.data;
-                
-                // Configurar el estilo del trazo
-                ctx.strokeStyle = color || '#000000';
-                ctx.lineWidth = lineWidth || 2;
-                ctx.lineCap = 'round';
-                ctx.lineJoin = 'round';
-
-                // Ajustar las coordenadas al tamaño del canvas
-                const rect = canvas.getBoundingClientRect();
-                const scaleX = canvas.width / rect.width;
-                const scaleY = canvas.height / rect.height;
-                const adjustedX = x * scaleX;
-                const adjustedY = y * scaleY;
-
-                switch (type) {
-                    case 'start':
-                        console.log('Starting new path at:', adjustedX, adjustedY);
-                        ctx.beginPath();
-                        ctx.moveTo(adjustedX, adjustedY);
-                        break;
-                    case 'draw':
-                        console.log('Drawing line to:', adjustedX, adjustedY);
-                        ctx.lineTo(adjustedX, adjustedY);
-                        ctx.stroke();
-                        break;
-                    case 'end':
-                        console.log('Ending path');
-                        ctx.closePath();
-                        break;
-                    default:
-                        console.warn('Unknown drawing type:', type);
-                }
+            if (message.type === 'draw' && !isDrawing) {
+                console.log('Processing drawing message:', message);
+                setCurrentDrawingData({
+                    x: message.x,
+                    y: message.y,
+                    type: message.drawType,
+                    color: message.color,
+                    lineWidth: message.lineWidth
+                });
+            } else if (message.type === 'game_state') {
+                setGameState(message.data);
             }
 
             switch (message.type) {
-                case 'game_state':
-                    setGameState(message.state);
-                    break;
                 case 'correct_guess':
                     setMessages(prev => [...prev, `${message.player} adivinó la palabra: ${message.word}!`]);
                     break;
@@ -81,21 +44,20 @@ export default function Game({ initialGameState }: GameProps) {
 
         addMessageHandler(handleMessage);
         return () => removeMessageHandler(handleMessage);
-    }, [addMessageHandler, removeMessageHandler, isCurrentPlayer]);
+    }, [addMessageHandler, removeMessageHandler, isDrawing]);
 
-    const handleDraw = useCallback((drawingData: any) => {
-        if (isCurrentPlayer) {
-            console.log('Sending drawing data:', drawingData);
-            sendMessage({
-                type: 'draw',
-                x: drawingData.x,
-                y: drawingData.y,
-                drawType: drawingData.type,
-                color: drawingData.color,
-                lineWidth: drawingData.lineWidth
-            });
-        }
-    }, [isCurrentPlayer, sendMessage]);
+    const handleDraw = (drawingData: any) => {
+        if (!isDrawing) return;
+        console.log('Sending drawing data:', drawingData);
+        sendMessage({
+            type: 'draw',
+            x: drawingData.x,
+            y: drawingData.y,
+            drawType: drawingData.type,
+            color: drawingData.color,
+            lineWidth: drawingData.lineWidth
+        });
+    };
 
     const handleGuess = useCallback((e: React.FormEvent) => {
         e.preventDefault();
@@ -117,6 +79,7 @@ export default function Game({ initialGameState }: GameProps) {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
             }
         }
+        setCurrentDrawingData(null);
     }, [gameState?.currentTurn]);
 
     if (!gameState) {
@@ -163,6 +126,7 @@ export default function Game({ initialGameState }: GameProps) {
                             onDraw={handleDraw}
                             width={800}
                             height={600}
+                            drawingData={currentDrawingData}
                         />
                     </div>
 
