@@ -51,12 +51,12 @@ Un juego de Pictionary en tiempo real donde los jugadores pueden dibujar y adivi
 ## Cómo jugar
 
 1. Abre la aplicación en tu navegador (`http://localhost:3000`)
-2. Crea una nueva sala o únete a una existente
-3. Invita a otros jugadores compartiendo el ID de la sala
+2. Acceder a la sala del juego
+3. Invita a otros jugadores compartiendo la url del juego
 4. Cuando todos los jugadores estén en la sala, el juego comenzará automáticamente
-5. Cada jugador tendrá su turno para dibujar una palabra mientras los demás intentan adivinar
-6. El juego termina después de que cada jugador haya dibujado 3 veces
-7. El jugador con más puntos al final gana
+5. Cada jugador tendrá su turno para dibujar una palabra mientras los demás intentan adivinar. El sisetma asigna aleatoriamente los turnos
+6. Mientras un jugador dibujar el puede adivinar ingresando la palabra que creen, es la correcta
+7. Si un jugador acierta, gana un punto el jugador y el dibujante. Todos los puntos se acumulan. El jugador con más puntos al final gana
 
 ## Características
 
@@ -79,12 +79,6 @@ Un juego de Pictionary en tiempo real donde los jugadores pueden dibujar y adivi
 - TypeScript
 - Tailwind CSS
 - WebSocket API
-
-## Development
-
-- Backend API documentation is available at `http://localhost:8000/docs`
-- The frontend uses Vite for fast development and building
-- Tailwind CSS is used for styling
 
 ## License
 
