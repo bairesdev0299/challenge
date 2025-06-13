@@ -94,7 +94,7 @@ const DrawingReceiver: React.FC<DrawingReceiverProps> = ({ width, height, drawin
                 position: 'absolute',
                 top: 0,
                 left: 0,
-                pointerEvents: 'none' // Permite que los eventos pasen al canvas de dibujo
+                pointerEvents: 'none' // Allows events to pass through to the drawing canvas
             }}
         />
     );

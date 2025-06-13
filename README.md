@@ -1,89 +1,130 @@
 # Pictionary Game
 
-Un juego de Pictionary en tiempo real donde los jugadores pueden dibujar y adivinar palabras*.
+A real-time Pictionary game where players can draw and guess words*.
 
-* al momento funciona bien con rectas, la interpolación curva no llegó a lograrse.
+* Currently, it works well with straight lines. Curve interpolation hasn't been achieved yet.
 
-## Requisitos
+## Project Documentation
+
+This project was bootstrapped following the detailed functional requirements specified in `cursor-functional-requirements.md`. The requirements document outlines the complete architecture, game states, WebSocket events, and other technical specifications that guided the development of this application.
+
+## Requirements
 
 ### Backend
 - Python 3.8+
-- pip (gestor de paquetes de Python)
+- pip (Python package manager)
 
 ### Frontend
 - Node.js 18+
-- npm (gestor de paquetes de Node.js)
+- npm (Node.js package manager)
 
-## Configuración
+## Setup
 
 ### Backend
-1. Navega al directorio del backend:
+1. Navigate to the backend directory:
    ```bash
    cd backend
    ```
 
-2. Crea y activa el entorno virtual:
+2. Create and activate the virtual environment:
    ```bash
    python3 -m venv venv
-   source venv/bin/activate  # En Unix/MacOS
-   # o
-   .\venv\Scripts\activate  # En Windows
+   source venv/bin/activate  # On Unix/MacOS
+   # or
+   .\venv\Scripts\activate  # On Windows
    ```
 
-3. Instala las dependencias:
+3. Install dependencies:
    ```bash
    pip install -r requirements.txt
    ```
 
-4. Configura las variables de entorno:
+4. Set up environment variables:
    ```bash
    cp .env.example .env
    ```
-   Edita el archivo `.env` con tus configuraciones específicas.
+   Edit the `.env` file with your specific configurations.
 
-5. Inicia el servidor:
+5. Start the server:
    ```bash
    uvicorn app.main:app --reload
    ```
-   El servidor se ejecutará en `http://localhost:8000`
+   The server will run at `http://localhost:8000`
 
 ### Frontend
-1. Navega al directorio del frontend:
+1. Navigate to the frontend directory:
    ```bash
    cd frontend
    ```
 
-2. Instala las dependencias:
+2. Install dependencies:
    ```bash
    npm install
    ```
 
-3. Inicia el servidor de desarrollo:
+3. Set up environment variables:
+   ```bash
+   cp .env.example .env
+   ```
+   Edit the `.env` file with your specific settings, especially the backend WebSocket URL.
+
+4. Start the development server:
    ```bash
    npm run dev
    ```
-   La aplicación estará disponible en `http://localhost:3000`
+   The app will be available at `http://localhost:3000`
 
-## Cómo jugar
+## Environment Variables
 
-1. Abre la aplicación en tu navegador (`http://localhost:3000`)
-2. Acceder a la sala del juego
-3. Invita a otros jugadores compartiendo la url del juego
-4. Cuando todos los jugadores estén en la sala, el juego comenzará automáticamente
-5. Cada jugador tendrá su turno para dibujar una palabra mientras los demás intentan adivinar. El sisetma asigna aleatoriamente los turnos
-6. Mientras un jugador dibujar el puede adivinar ingresando la palabra que creen, es la correcta
-7. Si un jugador acierta, gana un punto el jugador y el dibujante. Todos los puntos se acumulan. El jugador con más puntos al final gana
+### Backend (.env)
+```ini
+# Server Configuration
+HOST=0.0.0.0
+PORT=8000
+DEBUG=True
 
-## Características
+# Security
+SECRET_KEY=your-secret-key-here
+CORS_ORIGINS=http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001
 
-- Dibujo en tiempo real
-- Sistema de puntuación
-- Chat para adivinar palabras
-- Lista de jugadores y puntuaciones
-- Interfaz intuitiva y responsive
-- Soporte para múltiples salas de juego
+# Game Configuration
+ROUND_TIME=60  # seconds per round
+MIN_PLAYERS=2
+MAX_PLAYERS=8
+MAX_ROUNDS=10
+```
 
-## Tecnologías utilizadas
+### Frontend (.env)
+```ini
+# Backend Configuration
+NEXT_PUBLIC_WEBSOCKET_URL=ws://localhost:8000/ws
+
+# Game Configuration
+NEXT_PUBLIC_ROUND_TIME=60
+NEXT_PUBLIC_MIN_PLAYERS=2
+NEXT_PUBLIC_MAX_PLAYERS=8
+```
+
+## How to Play
+
+1. Open the app in your browser (`http://localhost:3000`)
+2. Enter a game room
+3. Invite other players by sharing the game URL
+4. When all players are in the room, the game starts automatically
+5. Each player takes turns drawing a word while others try to guess it. The system assigns turns randomly
+6. While a player is drawing, others can guess by typing the word they think is correct
+7. If a player guesses correctly, both the guesser and the drawer earn a point. All points accumulate. The player with the most points at the end wins
+
+## Features
+
+- Real-time drawing
+- Scoring system
+- Chat for guessing words
+- Player list with scores
+- Intuitive and responsive interface
+- Support for multiple game rooms
+
+## Technologies Used
 
 ### Backend
 - FastAPI
@@ -98,4 +139,4 @@ Un juego de Pictionary en tiempo real donde los jugadores pueden dibujar y adivi
 
 ## License
 
-MIT 
+MIT

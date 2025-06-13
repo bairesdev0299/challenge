@@ -18,11 +18,16 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
-# Get configuration from environment variables
+# Server Configuration
 HOST = os.getenv("HOST", "0.0.0.0")
 PORT = int(os.getenv("PORT", "8000"))
 DEBUG = os.getenv("DEBUG", "True").lower() == "true"
+
+# Security
+SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-here")
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
+
+# Game Configuration
 ROUND_TIME = int(os.getenv("ROUND_TIME", "60"))
 MIN_PLAYERS = int(os.getenv("MIN_PLAYERS", "2"))
 MAX_PLAYERS = int(os.getenv("MAX_PLAYERS", "8"))
@@ -50,9 +55,9 @@ class GameState:
         self.min_players: int = MIN_PLAYERS
         self.max_players: int = MAX_PLAYERS
         self.words = [
-            "casa", "perro", "gato", "árbol", "sol", "luna", "estrella",
-            "montaña", "río", "mar", "avión", "tren", "bicicleta", "coche",
-            "flor", "libro", "teléfono", "computadora", "mesa", "silla"
+            "house", "dog", "cat", "tree", "sun", "moon", "star",
+            "mountain", "river", "sea", "airplane", "train", "bicycle", "car",
+            "flower", "book", "phone", "computer", "table", "chair"
         ]
 
     async def add_player(self, player_name: str, websocket: WebSocket):
@@ -104,7 +109,7 @@ class GameState:
         logger.info("Broadcasting game state")
         for player_name, websocket in self.players.items():
             try:
-                # Solo enviar la palabra al jugador que debe dibujar
+                # Only send the word to the player who should draw
                 word = self.current_word if player_name == self.current_turn else None
                 await websocket.send_json({
                     "type": "game_state",
@@ -133,9 +138,9 @@ class GameState:
 
     async def broadcast_drawing(self, drawing_data: dict):
         logger.info(f"Broadcasting drawing data: {drawing_data}")
-        # Solo enviar a los jugadores que no están dibujando
+        # Only send to players who are not drawing
         for player_name, websocket in self.players.items():
-            if player_name != self.current_turn:  # No enviar al jugador que está dibujando
+            if player_name != self.current_turn:  # Do not send to the player who is drawing
                 try:
                     message = {
                         "type": "drawing",
@@ -208,7 +213,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
                 elif message["type"] == "drawing" and player_name == game_state.current_turn:
                     logger.info(f"Drawing from {player_name}: {message}")
-                    # Validar que los datos de dibujo sean válidos
+                    # Validate that the drawing data is valid
                     if "data" in message and all(key in message["data"] for key in ["x", "y"]):
                         await game_state.broadcast_drawing(message["data"])
                     else:

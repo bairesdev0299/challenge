@@ -24,7 +24,7 @@ export default function Game({ initialGameState }: GameProps) {
             console.log('=== GAME COMPONENT MESSAGE HANDLER ===');
             console.log('Raw message received:', message);
             
-            // Asegurarnos de que el mensaje sea un objeto
+            // Make sure the message is an object
             const parsedMessage = typeof message === 'string' ? JSON.parse(message) : message;
             console.log('Parsed message:', parsedMessage);
             
@@ -40,7 +40,7 @@ export default function Game({ initialGameState }: GameProps) {
                     isCurrentPlayer: gameState?.players?.find((p: any) => p.isCurrentUser)?.name
                 });
 
-                // Solo procesar el mensaje si no es el jugador que está dibujando
+                // Only process the message if it's not the player who is drawing
                 if (!isCurrentPlayerDrawing) {
                     console.log('Processing drawing message as observer');
                     setCurrentDrawingData(parsedMessage.data);
@@ -52,7 +52,7 @@ export default function Game({ initialGameState }: GameProps) {
                 setGameState(parsedMessage.state);
                 setIsDrawing(parsedMessage.state.currentTurn === parsedMessage.state.players.find((p: any) => p.isCurrentUser)?.name);
             } else if (parsedMessage.type === 'correct_guess') {
-                setMessages(prev => [...prev, `${parsedMessage.player} adivinó la palabra: ${parsedMessage.word}!`]);
+                setMessages(prev => [...prev, `${parsedMessage.player} guessed the word: ${parsedMessage.word}!`]);
             }
             console.log('=== END MESSAGE HANDLER ===');
         };
@@ -89,7 +89,7 @@ export default function Game({ initialGameState }: GameProps) {
         });
     }, [sendMessage]);
 
-    // Efecto para limpiar el canvas cuando cambia el turno
+    // Effect to clear the canvas when the turn changes
     useEffect(() => {
         if (gameState?.currentTurn) {
             const canvas = canvasRef.current;
@@ -111,14 +111,14 @@ export default function Game({ initialGameState }: GameProps) {
     return (
         <div className="flex flex-col items-center gap-4 p-4">
             <div className="text-xl font-bold">
-                {isDrawing ? `Tu turno - Dibuja: ${gameState?.word}` : 'Espera tu turno'}
+                {isDrawing ? `Your turn - Draw: ${gameState?.word}` : 'Wait for your turn'}
             </div>
             
             <button
                 onClick={handleResetGame}
                 className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 mb-4"
             >
-                Reiniciar Juego
+                Reset Game
             </button>
 
             <div className="relative">
@@ -143,7 +143,7 @@ export default function Game({ initialGameState }: GameProps) {
                     type="text"
                     value={guess}
                     onChange={(e) => setGuess(e.target.value)}
-                    placeholder="Adivina la palabra..."
+                    placeholder="Guess the word..."
                     className="px-4 py-2 border rounded"
                     disabled={isDrawing}
                 />
@@ -152,12 +152,12 @@ export default function Game({ initialGameState }: GameProps) {
                     className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-400"
                     disabled={isDrawing}
                 >
-                    Adivinar
+                    Guess
                 </button>
             </form>
 
             <div className="w-full max-w-md">
-                <h3 className="text-lg font-semibold mb-2">Mensajes:</h3>
+                <h3 className="text-lg font-semibold mb-2">Messages:</h3>
                 <div className="border rounded p-4 h-48 overflow-y-auto">
                     {messages.map((msg, index) => (
                         <div key={index} className="mb-2">

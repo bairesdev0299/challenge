@@ -18,7 +18,7 @@ const DrawingCanvas = forwardRef<HTMLCanvasElement, DrawingCanvasProps>((props, 
 
     useImperativeHandle(ref, () => canvasRef.current!);
 
-    // Efecto para manejar datos de dibujo recibidos
+    // Effect to handle received drawing data
     useEffect(() => {
         if (!drawingData || isDrawing) return;
 
@@ -41,13 +41,13 @@ const DrawingCanvas = forwardRef<HTMLCanvasElement, DrawingCanvasProps>((props, 
             }
         });
 
-        // Configurar el estilo del trazo
+        // Set stroke style
         ctx.strokeStyle = color || '#000000';
         ctx.lineWidth = lineWidth || 2;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
 
-        // Dibujar el punto
+        // Draw the point
         ctx.beginPath();
         ctx.arc(x, y, lineWidth/2, 0, Math.PI * 2);
         ctx.fill();
@@ -86,7 +86,7 @@ const DrawingCanvas = forwardRef<HTMLCanvasElement, DrawingCanvasProps>((props, 
         const dx = end.x - start.x;
         const dy = end.y - start.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
-        const steps = Math.max(Math.floor(distance / 2), 1); // Un punto cada 2 píxeles
+        const steps = Math.max(Math.floor(distance / 2), 1); // One point every 2 pixels
 
         for (let i = 0; i <= steps; i++) {
             const t = i / steps;
@@ -131,10 +131,10 @@ const DrawingCanvas = forwardRef<HTMLCanvasElement, DrawingCanvasProps>((props, 
 
         const coords = getCanvasCoordinates(clientX, clientY);
         
-        // Obtener puntos interpolados entre el último punto y el actual
+        // Get interpolated points between the last point and the current one
         const interpolatedPoints = interpolatePoints(lastPointRef.current, coords);
         
-        // Dibujar y enviar todos los puntos interpolados
+        // Draw and send all interpolated points
         const ctx = canvasRef.current?.getContext('2d');
         if (ctx) {
             ctx.beginPath();

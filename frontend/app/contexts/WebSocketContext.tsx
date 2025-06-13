@@ -44,7 +44,7 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const { sendMessage } = useWebSocket({
-    url: 'ws://localhost:8000/ws',
+    url: process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'ws://localhost:8000/ws',
     onMessage: handleMessage,
     onOpen: handleOpen,
     onClose: handleClose,
