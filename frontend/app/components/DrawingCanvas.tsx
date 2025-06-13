@@ -126,20 +126,27 @@ const DrawingCanvas = forwardRef<HTMLCanvasElement, DrawingCanvasProps>((props, 
     };
 
     const handleDraw = (clientX: number, clientY: number) => {
-        if (!isDrawing || !isDrawingRef.current) return;
+        if (!isDrawing || !isDrawingRef.current || !lastPointRef.current) return;
 
         const coords = getCanvasCoordinates(clientX, clientY);
         
-        // Dibujar localmente
+        // Obtener puntos interpolados entre el último punto y el actual
+        const interpolatedPoints = interpolatePoints(lastPointRef.current, coords);
+        
+        // Dibujar y enviar todos los puntos interpolados
         const ctx = canvasRef.current?.getContext('2d');
         if (ctx) {
             ctx.beginPath();
-            ctx.arc(coords.x, coords.y, 1, 0, Math.PI * 2);
-            ctx.fill();
+            ctx.moveTo(lastPointRef.current.x, lastPointRef.current.y);
+            
+            interpolatedPoints.forEach(point => {
+                ctx.lineTo(point.x, point.y);
+                sendPoint(point.x, point.y);
+            });
+            
+            ctx.stroke();
         }
 
-        // Enviar el punto actual
-        sendPoint(coords.x, coords.y);
         lastPointRef.current = coords;
     };
 

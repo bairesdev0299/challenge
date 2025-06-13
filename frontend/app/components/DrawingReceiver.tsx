@@ -10,6 +10,24 @@ interface DrawingReceiverProps {
 
 const DrawingReceiver: React.FC<DrawingReceiverProps> = ({ width, height, drawingData }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const lastPointRef = useRef<{ x: number; y: number } | null>(null);
+
+    const interpolatePoints = (start: { x: number; y: number }, end: { x: number; y: number }) => {
+        const points = [];
+        const dx = end.x - start.x;
+        const dy = end.y - start.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        const steps = Math.max(Math.floor(distance / 2), 1); // Un punto cada 2 píxeles
+
+        for (let i = 0; i <= steps; i++) {
+            const t = i / steps;
+            points.push({
+                x: start.x + dx * t,
+                y: start.y + dy * t
+            });
+        }
+        return points;
+    };
 
     useEffect(() => {
         const canvas = canvasRef.current;
@@ -51,10 +69,28 @@ const DrawingReceiver: React.FC<DrawingReceiverProps> = ({ width, height, drawin
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
 
-        // Dibujar el punto
-        ctx.beginPath();
-        ctx.arc(x, y, lineWidth/2, 0, Math.PI * 2);
-        ctx.fill();
+        // Si hay un último punto, interpolar y dibujar
+        if (lastPointRef.current) {
+            const interpolatedPoints = interpolatePoints(lastPointRef.current, { x, y });
+            
+            ctx.beginPath();
+            ctx.moveTo(lastPointRef.current.x, lastPointRef.current.y);
+            
+            interpolatedPoints.forEach(point => {
+                ctx.lineTo(point.x, point.y);
+            });
+            
+            ctx.stroke();
+        } else {
+            // Si no hay último punto, dibujar un punto
+            ctx.beginPath();
+            ctx.arc(x, y, lineWidth/2, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Actualizar el último punto
+        lastPointRef.current = { x, y };
+        
         console.log('=== END DRAWING RECEIVER ===');
     }, [drawingData]);
 
